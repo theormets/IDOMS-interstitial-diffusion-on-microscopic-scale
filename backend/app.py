@@ -4,8 +4,15 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Literal
 from engine import run_simulation
 
-app = FastAPI(title="IDOMS Revised Backend", version="0.2.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app = FastAPI(title="IDOMS Two-Alloy Backend", version="0.3.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class Domain(BaseModel):
     Nx: int
@@ -19,7 +26,7 @@ class Domain(BaseModel):
 
 class ToolSetup(BaseModel):
     host: str
-    alloying_elements: List[str] = Field(default_factory=list, max_length=3)
+    alloying_elements: List[str] = Field(default_factory=list, max_length=2)
     composition_at_percent: Dict[str, float] = Field(default_factory=dict)
     host_at_percent: float
     crystal_structure: Literal["BCC", "FCC"]
@@ -38,7 +45,7 @@ class SimulationInput(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.2.0"}
+    return {"status": "ok", "version": "0.3.0"}
 
 @app.post("/simulate")
 def simulate(inp: SimulationInput):

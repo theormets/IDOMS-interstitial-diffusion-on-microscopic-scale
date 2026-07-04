@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IDOMS — Revised Interstitial Pathway Tool</title>
+  <title>IDOMS — Interstitial Diffusion Tool</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 </head>
@@ -11,29 +11,41 @@
   <header class="hero">
     <div>
       <h1>IDOMS</h1>
-      <p class="subtitle">Interstitial Diffusion on Microscopic Scale — alloy-only graph/KMC trial tool</p>
+      <p class="subtitle">Interstitial Diffusion on Microscopic Scale — two-alloy graph/KMC trial tool</p>
     </div>
-    <div class="badge">Revised backend version: user-supplied energies only</div>
+    <div class="badge">User-supplied energies only</div>
   </header>
 
   <main>
     <section class="card notice">
       <h2>Scope</h2>
       <p>
-        This revised trial version does not estimate energies and does not use a database.
-        The user supplies all site-energy and saddle-energy parameters in eV.
-        The backend constructs the BCC/FCC interstitial graph, assigns site energies and jump barriers,
-        solves first-passage/absorption probabilities, extracts dominant pathways, and returns lattice-aware visualisation data.
+        This version supports a host + up to two alloying elements. It does not estimate energies.
+        The backend constructs a lattice/interstitial graph, uses user-supplied site and saddle energies,
+        computes first-passage quantities, and returns lattice-aware pathway visualisation data.
       </p>
     </section>
+
+    <section class="card">
+      <h2>0. Backend connection</h2>
+      <label>Backend API URL
+        <input id="backendUrl" value="http://127.0.0.1:8000" />
+      </label>
+      <button class="secondary" onclick="checkBackend()">Check backend</button>
+      <div id="backendStatus" class="summary compact">Backend not checked.</div>
+    </section>
+
     <section class="card">
       <h2>1. Alloy composition</h2>
       <div class="grid two">
         <label>Host element <input id="hostElement" value="Fe" /></label>
         <label>Lattice parameter, a (Å) <input id="latticeA" type="number" step="0.0001" value="2.866" /></label>
       </div>
-      <p class="hint">Enter up to three alloying elements in atomic percent. The host fraction is calculated automatically as 100 − total alloying at.%.</p>
-      <table class="composition-table"><thead><tr><th>Alloying element</th><th>at.%</th><th></th></tr></thead><tbody id="compositionRows"></tbody></table>
+      <p class="hint">Enter up to two alloying elements in atomic percent. Host at.% is calculated automatically.</p>
+      <table class="composition-table">
+        <thead><tr><th>Alloying element</th><th>at.%</th><th></th></tr></thead>
+        <tbody id="compositionRows"></tbody>
+      </table>
       <button class="secondary" onclick="addCompositionRow()">+ Add alloying element</button>
       <div id="compositionSummary" class="summary compact"></div>
     </section>
@@ -41,14 +53,22 @@
     <section class="card">
       <h2>2. Crystal, interstitial and boundary setup</h2>
       <div class="grid three">
-        <label>Crystal structure <select id="crystalStructure"><option value="BCC">BCC</option><option value="FCC">FCC</option></select></label>
-        <label>Interstitial species <select id="interstitialSpecies"><option>H</option><option>D</option><option>T</option><option>C</option><option>N</option><option>O</option></select></label>
-        <label>Interstitial-site network <select id="siteNetwork"><option value="auto">Auto</option><option value="tetrahedral">Tetrahedral</option><option value="octahedral">Octahedral</option><option value="tetra_octa">Tetrahedral + octahedral</option></select></label>
+        <label>Crystal structure
+          <select id="crystalStructure"><option value="BCC">BCC</option><option value="FCC">FCC</option></select>
+        </label>
+        <label>Interstitial species
+          <select id="interstitialSpecies"><option>H</option><option>D</option><option>T</option><option>C</option><option>N</option><option>O</option></select>
+        </label>
+        <label>Interstitial-site network
+          <select id="siteNetwork"><option value="auto">Auto</option><option value="tetrahedral">Tetrahedral</option><option value="octahedral">Octahedral</option><option value="tetra_octa">Tetrahedral + octahedral</option></select>
+        </label>
       </div>
       <div class="grid three">
         <label>Temperature (K) <input id="temperatureK" type="number" step="1" value="600" /></label>
         <label>Requested slab thickness (nm) <input id="slabThicknessNm" type="number" step="0.1" value="4.5" /></label>
-        <label>Boundary problem <select id="boundaryType"><option value="surface_return">Surface return vs bulk transmission</option><option value="bulk_transmission">Bulk transmission</option><option value="retention">Retention between two absorbing boundaries</option></select></label>
+        <label>Boundary problem
+          <select id="boundaryType"><option value="surface_return">Surface return vs bulk transmission</option><option value="bulk_transmission">Bulk transmission</option><option value="retention">Retention between two absorbing boundaries</option></select>
+        </label>
       </div>
       <button onclick="prepareEnergyInputs()">Calculate domain and generate energy inputs</button>
       <div id="domainSummary" class="summary"></div>
@@ -56,21 +76,38 @@
 
     <section class="card">
       <h2>3. Required user-supplied energy values</h2>
-      <p class="hint">All energies are in eV. Site-energy shifts affect how long the interstitial resides at a site. Saddle-energy shifts affect jump barriers. Negative site-energy shifts represent attractive/trapping environments.</p>
+      <p class="hint">
+        All energies are in eV. Site-energy shift ΔU lowers/raises the energy of the diffusing species at interstitial sites.
+        Saddle-energy shift ΔE‡ changes the jump barrier near a solute. Negative ΔU means attraction/trapping.
+      </p>
       <div id="energyFields" class="energy-fields"></div>
     </section>
 
     <section class="card">
-      <h2>4. Run graph/KMC simulation</h2>
+      <h2>4. Run simulation</h2>
       <button onclick="runSimulation()">Run backend simulation and visualise pathway</button>
       <div id="runStatus" class="summary compact"></div>
     </section>
 
-    <section class="card"><h2>5. Quantitative outputs</h2><div id="metricsCards" class="metrics-grid"></div></section>
-    <section class="card"><h2>6. Lattice-aware pathway visualisation</h2><div id="pathPlot" class="plot"></div><div id="survivalPlot" class="plot small"></div></section>
-    <section class="card"><h2>Export</h2><button class="secondary" onclick="downloadInputJson()">Download input JSON</button><button class="secondary" onclick="downloadResultJson()">Download result JSON</button></section>
+    <section class="card">
+      <h2>5. Quantitative outputs</h2>
+      <div id="metricsCards" class="metrics-grid"></div>
+    </section>
+
+    <section class="card">
+      <h2>6. Lattice-aware pathway visualisation</h2>
+      <div id="pathPlot" class="plot"></div>
+      <div id="survivalPlot" class="plot small"></div>
+    </section>
+
+    <section class="card">
+      <h2>Export</h2>
+      <button class="secondary" onclick="downloadInputJson()">Download input JSON</button>
+      <button class="secondary" onclick="downloadResultJson()">Download result JSON</button>
+    </section>
   </main>
-  <footer>IDOMS revised trial tool. Alloy-only module. Stress, irradiation, grain boundaries, dislocations and energy-database support are intentionally excluded.</footer>
-  <script src="script.js?v=70"></script>
+
+  <footer>IDOMS trial tool. Two-alloy module. No database, no energy estimation.</footer>
+  <script src="script.js"></script>
 </body>
 </html>
