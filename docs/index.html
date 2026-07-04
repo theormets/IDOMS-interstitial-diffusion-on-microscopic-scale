@@ -46,7 +46,7 @@
         <thead><tr><th>Alloying element</th><th>at.%</th><th></th></tr></thead>
         <tbody id="compositionRows"></tbody>
       </table>
-      <button class="secondary" onclick="addCompositionRow()">+ Add alloying element</button>
+      <button id="addAlloyBtn" class="secondary" onclick="addCompositionRow()">+ Add alloying element</button>
       <div id="compositionSummary" class="summary compact"></div>
     </section>
 
@@ -77,8 +77,11 @@
     <section class="card">
       <h2>3. Required user-supplied energy values</h2>
       <p class="hint">
-        All energies are in eV. Site-energy shift ΔU lowers/raises the energy of the diffusing species at interstitial sites.
-        Saddle-energy shift ΔE‡ changes the jump barrier near a solute. Negative ΔU means attraction/trapping.
+        Vital-energy mode. All energies are in eV. You supply one baseline migration barrier plus, for each
+        alloying element, a site-energy shift ΔU and a saddle-energy shift ΔE‡.
+        Negative ΔU means the interstitial is stabilised/trapped near that solute; positive ΔE‡ means the solute
+        raises the local jump barrier. Host site energy is fixed at 0, and surface/bulk exit barriers default to the
+        host migration barrier (no separate inputs required in this version).
       </p>
       <div id="energyFields" class="energy-fields"></div>
     </section>
@@ -108,6 +111,6 @@
   </main>
 
   <footer>IDOMS trial tool. Two-alloy module. No database, no energy estimation.</footer>
-  <script src="script.js"></script>
+  <script src="script.js?v=2026-07-05-02"></script>
 </body>
 </html>

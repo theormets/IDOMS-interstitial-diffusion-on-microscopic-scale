@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Literal
 from engine import run_simulation
 
-app = FastAPI(title="IDOMS Two-Alloy Backend", version="0.3.0")
+VERSION = "0.3-two-alloy-reduced-energy"
+
+app = FastAPI(title="IDOMS Two-Alloy Backend", version=VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,8 +47,10 @@ class SimulationInput(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": "0.3.0"}
+    return {"status": "ok", "version": VERSION}
 
 @app.post("/simulate")
 def simulate(inp: SimulationInput):
+    if len(inp.setup.alloying_elements) > 2:
+        return {"error": "This version supports at most two alloying elements."}
     return run_simulation(inp.setup.model_dump(), inp.energies_eV)

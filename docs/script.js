@@ -1,3 +1,4 @@
+const DEFAULT_BACKEND_URL = "https://idoms-backend.onrender.com";
 const MAX_ALLOY_ELEMENTS = 2;
 const MIN_ATOMS_PER_ALLOY = 4;
 const MIN_NX_NY = 6;
@@ -7,13 +8,17 @@ let latestEnergyTemplate = [];
 let latestResult = null;
 
 document.addEventListener("DOMContentLoaded", () => {
+  const urlInput = document.getElementById("backendUrl");
+  if (urlInput && !urlInput.value.trim()) urlInput.value = DEFAULT_BACKEND_URL;
   addCompositionRow("C", 1.0);
   addCompositionRow("Cr", 9.0);
   updateCompositionSummary();
+  updateAddButtonState();
 });
 
 function apiBase() {
-  return document.getElementById("backendUrl").value.trim().replace(/\/$/, "");
+  const v = document.getElementById("backendUrl").value.trim().replace(/\/$/, "");
+  return v || DEFAULT_BACKEND_URL;
 }
 
 async function checkBackend() {
@@ -27,10 +32,17 @@ async function checkBackend() {
   }
 }
 
+function updateAddButtonState() {
+  const btn = document.getElementById("addAlloyBtn");
+  if (!btn) return;
+  const rows = document.querySelectorAll("#compositionRows tr").length;
+  btn.style.display = rows >= MAX_ALLOY_ELEMENTS ? "none" : "";
+}
+
 function addCompositionRow(element = "", atpct = "") {
   const tbody = document.getElementById("compositionRows");
   if (tbody.children.length >= MAX_ALLOY_ELEMENTS) {
-    alert(`This version allows up to ${MAX_ALLOY_ELEMENTS} alloying elements.`);
+    updateAddButtonState();
     return;
   }
   const tr = document.createElement("tr");
@@ -40,11 +52,13 @@ function addCompositionRow(element = "", atpct = "") {
     <td><button class="remove-btn" onclick="removeRow(this)">Remove</button></td>`;
   tbody.appendChild(tr);
   updateCompositionSummary();
+  updateAddButtonState();
 }
 
 function removeRow(btn) {
   btn.closest("tr").remove();
   updateCompositionSummary();
+  updateAddButtonState();
 }
 
 function getComposition() {
@@ -137,26 +151,21 @@ function calculateEfficientDomain(composition, crystal, aAng, slabThicknessNm) {
   };
 }
 
+// Reduced vital-energy set (spec section "Recommended vital-energy mode"):
+//   host_migration_barrier  + per-alloy {site,saddle} shifts.
+//   2 alloys -> 5 values, 1 alloy -> 3 values, pure host -> 1 value.
 function buildEnergyTemplate(setup) {
   const I = setup.interstitial_species;
   const host = setup.host;
   const defaultBarrier = setup.crystal_structure === "BCC" && host === "Fe" && I === "H" ? 0.088 : 0.100;
   const template = [
-    {key: "host_site_energy", label: `Reference site energy U for ${I} in ${host} interstitial site`, kind: "site energy", unit: "eV", default: 0.000},
-    {key: "host_migration_barrier", label: `Baseline ${I} migration barrier in ${host}`, kind: "activation barrier", unit: "eV", default: defaultBarrier},
-    {key: "surface_exit_barrier", label: "Surface exit / return barrier", kind: "boundary barrier", unit: "eV", default: defaultBarrier},
-    {key: "bulk_exit_barrier", label: "Bulk transmission barrier", kind: "boundary barrier", unit: "eV", default: defaultBarrier}
+    {key: "host_migration_barrier", label: `Baseline ${I} migration barrier in pure ${host}`, kind: "activation barrier", unit: "eV", default: defaultBarrier}
   ];
   for (const el of setup.alloying_elements) {
     template.push(
       {key: `${el}_site_energy_shift`, label: `Site-energy shift ΔU for ${I} near ${el} (negative = attractive/trapping)`, kind: "site energy", unit: "eV", default: 0.000},
-      {key: `${el}_saddle_energy_shift`, label: `Saddle-energy shift ΔE‡ for ${I} jumps near ${el}`, kind: "saddle energy", unit: "eV", default: 0.000},
-      {key: `${el}_cluster_trap_depth`, label: `Additional trap depth near ${el}-rich local region`, kind: "cluster site energy", unit: "eV", default: 0.000}
+      {key: `${el}_saddle_energy_shift`, label: `Saddle-energy shift ΔE‡ for ${I} jumps near ${el} (positive = local barrier)`, kind: "saddle energy", unit: "eV", default: 0.000}
     );
-  }
-  if (setup.alloying_elements.length === 2) {
-    const [a, b] = setup.alloying_elements;
-    template.push({key: `pair_${a}_${b}_saddle_shift`, label: `Pair correction to saddle energy near ${a}–${b} local environment`, kind: "pair saddle energy", unit: "eV", default: 0.000});
   }
   return template;
 }
@@ -212,6 +221,7 @@ async function runSimulation() {
     const response = await fetch(`${apiBase()}/simulate`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
     if (!response.ok) throw new Error(`Backend error: ${await response.text()}`);
     latestResult = await response.json();
+    if (latestResult && latestResult.error) throw new Error(latestResult.error);
     renderResults(latestResult);
     document.getElementById("runStatus").textContent = "Simulation complete. Results are from backend graph/master-equation calculation using user-supplied energies.";
   } catch (err) {
@@ -221,6 +231,9 @@ async function runSimulation() {
 }
 
 function renderResults(result) { renderMetricCards(result.metrics || {}); renderPathPlot(result); renderSurvivalPlot(result); }
+
+function isFiniteArray(arr) { return Array.isArray(arr) && arr.length > 0 && arr.every(v => Number.isFinite(v)); }
+
 function formatValue(v) { if (v === null || v === undefined || Number.isNaN(v)) return "—"; if (Math.abs(v) > 0 && (Math.abs(v) < 1e-3 || Math.abs(v) > 1e4)) return Number(v).toExponential(3); return Number(v).toFixed(4); }
 
 function renderMetricCards(metrics) {
@@ -258,7 +271,7 @@ function renderPathPlot(result) {
 function renderSurvivalPlot(result) {
   let t = result.survival_probability?.time_s || [];
   let s = result.survival_probability?.S_t || [];
-  if (!t.length || !s.length) { t = [0, 1]; s = [1, 0]; }
+  if (!isFiniteArray(t) || !isFiniteArray(s) || t.length !== s.length) { t = [0, 1]; s = [1, 0]; }
   Plotly.newPlot("survivalPlot", [{x: t, y: s, mode: "lines", type: "scatter", name: "S(t)", line: {width: 4, color: "#0f766e"}}], {title: "Survival probability", xaxis: {title: "time (s)"}, yaxis: {title: "S(t)", range: [0, 1.05]}, margin: {l: 65, r: 30, t: 55, b: 70}}, {responsive: true});
 }
 
