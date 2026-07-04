@@ -4,15 +4,8 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Literal
 from engine import run_simulation
 
-app = FastAPI(title="IDOMS Backend", version="0.1.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Replace with your GitHub Pages URL later.
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="IDOMS Revised Backend", version="0.2.0")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 class Domain(BaseModel):
     Nx: int
@@ -26,12 +19,13 @@ class Domain(BaseModel):
 
 class ToolSetup(BaseModel):
     host: str
-    alloying_elements: List[str] = Field(default_factory=list)
+    alloying_elements: List[str] = Field(default_factory=list, max_length=3)
     composition_at_percent: Dict[str, float] = Field(default_factory=dict)
     host_at_percent: float
     crystal_structure: Literal["BCC", "FCC"]
     lattice_parameter_A: float
     interstitial_species: Literal["H", "D", "T", "C", "N", "O"]
+    site_network: Literal["auto", "tetrahedral", "octahedral", "tetra_octa"] = "auto"
     temperature_K: float
     requested_slab_thickness_nm: float
     boundary: Literal["surface_return", "bulk_transmission", "retention"]
@@ -44,7 +38,7 @@ class SimulationInput(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": "0.2.0"}
 
 @app.post("/simulate")
 def simulate(inp: SimulationInput):
