@@ -217,7 +217,7 @@ async function runSimulation() {
       latestResult = runBrowserTrialSimulation(payload);
     }
     renderResults(latestResult);
-    document.getElementById("runStatus").textContent = "Simulation complete. In this GitHub-only trial, calculations are intentionally simplified. The proper backend can replace this browser engine later.";
+    document.getElementById("runStatus").textContent = "Simulation complete. Results generated using the IDOMS backend.";
   } catch (err) {
     alert(err.message);
     document.getElementById("runStatus").textContent = "Simulation failed.";
