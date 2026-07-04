@@ -26,15 +26,6 @@
         solves first-passage/absorption probabilities, extracts dominant pathways, and returns lattice-aware visualisation data.
       </p>
     </section>
-
-    <section class="card">
-      <h2>0. Backend connection</h2>
-      <p class="hint">For local testing use <code>http://127.0.0.1:8000</code>. For deployment, replace it with your Render/FastAPI backend URL.</p>
-      <label>Backend API URL <input id="backendUrl" value="https://idoms-backend.onrender.com" /></label>
-      <button class="secondary" onclick="checkBackend()">Check backend</button>
-      <div id="backendStatus" class="summary compact">Backend not checked.</div>
-    </section>
-
     <section class="card">
       <h2>1. Alloy composition</h2>
       <div class="grid two">
@@ -80,6 +71,6 @@
     <section class="card"><h2>Export</h2><button class="secondary" onclick="downloadInputJson()">Download input JSON</button><button class="secondary" onclick="downloadResultJson()">Download result JSON</button></section>
   </main>
   <footer>IDOMS revised trial tool. Alloy-only module. Stress, irradiation, grain boundaries, dislocations and energy-database support are intentionally excluded.</footer>
-  <script src="script.js"></script>
+  <script src="script.js?v=70"></script>
 </body>
 </html>
