@@ -1,28 +1,42 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Literal, List, Dict
+from pydantic import BaseModel, Field
+from typing import Dict, List, Literal
 from engine import run_simulation
 
-app = FastAPI(title="Interstitial Pathway Tool")
+app = FastAPI(title="IDOMS Backend", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # later replace with your GitHub Pages URL
+    allow_origins=["*"],  # Replace with your GitHub Pages URL later.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+class Domain(BaseModel):
+    Nx: int
+    Ny: int
+    Nz: int
+    unit: str
+    total_lattice_sites: int
+    required_lattice_sites_minimum: int
+    physical_size_nm: Dict[str, float]
+    estimated_atom_counts: Dict[str, int]
+
 class ToolSetup(BaseModel):
     host: str
-    alloying_elements: List[str]
-    composition: Dict[str, float]
+    alloying_elements: List[str] = Field(default_factory=list)
+    composition_at_percent: Dict[str, float] = Field(default_factory=dict)
+    host_at_percent: float
     crystal_structure: Literal["BCC", "FCC"]
+    lattice_parameter_A: float
     interstitial_species: Literal["H", "D", "T", "C", "N", "O"]
     temperature_K: float
-    domain_cells: List[int]
+    requested_slab_thickness_nm: float
     boundary: Literal["surface_return", "bulk_transmission", "retention"]
+    site_per_unit_cell: int
+    domain: Domain
 
 class SimulationInput(BaseModel):
     setup: ToolSetup
@@ -32,55 +46,6 @@ class SimulationInput(BaseModel):
 def health():
     return {"status": "ok"}
 
-@app.post("/energy-template")
-def energy_template(setup: ToolSetup):
-    n = len(setup.alloying_elements)
-
-    required = [
-        {
-            "key": "host_migration_barrier",
-            "label": f"Baseline {setup.interstitial_species} migration barrier in {setup.host}",
-            "unit": "eV",
-        },
-        {
-            "key": "surface_exit_barrier",
-            "label": "Surface exit / return barrier",
-            "unit": "eV",
-        },
-        {
-            "key": "bulk_exit_barrier",
-            "label": "Bulk transmission barrier",
-            "unit": "eV",
-        },
-    ]
-
-    for el in setup.alloying_elements:
-        required.extend([
-            {
-                "key": f"{el}_interstitial_binding",
-                "label": f"{setup.interstitial_species} binding energy near {el}",
-                "unit": "eV",
-            },
-            {
-                "key": f"{el}_modified_jump_barrier",
-                "label": f"{el}-modified local jump barrier",
-                "unit": "eV",
-            },
-            {
-                "key": f"{el}_trap_depth",
-                "label": f"Trap depth near {el}-rich local region",
-                "unit": "eV",
-            },
-        ])
-
-    return {
-        "number_of_alloying_elements": n,
-        "number_of_required_energy_values": len(required),
-        "required_energy_values": required,
-        "note": "All energies must be supplied by the user. No database or estimation is used in this trial version."
-    }
-
 @app.post("/simulate")
 def simulate(inp: SimulationInput):
-    result = run_simulation(inp.setup.model_dump(), inp.energies_eV)
-    return result 
+    return run_simulation(inp.setup.model_dump(), inp.energies_eV)

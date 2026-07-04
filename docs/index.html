@@ -1,98 +1,93 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Interstitial Pathway Tool</title>
-
-    <link rel="stylesheet" href="style.css">
-
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="script.js" defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IDOMS — Interstitial Diffusion on Microscopic Scale</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
 </head>
-
 <body>
+  <header class="hero">
+    <div>
+      <h1>IDOMS</h1>
+      <p class="subtitle">Interstitial Diffusion on Microscopic Scale — trial alloy-only pathway tool</p>
+    </div>
+    <div class="badge">Trial version: user-supplied energies only</div>
+  </header>
 
-<div class="container">
+  <main>
+    <section class="card notice">
+      <h2>Scope of this trial version</h2>
+      <p>
+        This version does not estimate energy values and does not use a database.
+        The user supplies all migration barriers, binding energies, trap depths, and boundary escape barriers in eV.
+        The tool calculates a composition-compatible domain, generates the required energy-input list,
+        runs a trial pathway calculation, and visualises the dominant pathway.
+      </p>
+    </section>
 
-    <h1>Interstitial Pathway Tool – Trial Version</h1>
+    <section class="card">
+      <h2>1. Alloy composition</h2>
+      <div class="grid two">
+        <label>Host element<input id="hostElement" value="Fe" oninput="updateCompositionSummary()" /></label>
+        <label>Lattice parameter, a (Å)<input id="latticeA" type="number" step="0.0001" value="2.866" /></label>
+      </div>
+      <p class="hint">Enter alloying elements in atomic percent. The host fraction is calculated automatically as 100 − total alloying at.%.</p>
+      <table class="composition-table">
+        <thead><tr><th>Alloying element</th><th>at.%</th><th></th></tr></thead>
+        <tbody id="compositionRows"></tbody>
+      </table>
+      <button class="secondary" onclick="addCompositionRow()">+ Add alloying element</button>
+      <div id="compositionSummary" class="summary"></div>
+    </section>
 
-    <p>
-        This trial version does not estimate migration energies.
-        All energy values must be supplied by the user in eV.
-    </p>
+    <section class="card">
+      <h2>2. Crystal, interstitial and boundary setup</h2>
+      <div class="grid three">
+        <label>Crystal structure<select id="crystalStructure"><option value="BCC">BCC</option><option value="FCC">FCC</option></select></label>
+        <label>Interstitial species<select id="interstitialSpecies"><option>H</option><option>D</option><option>T</option><option>C</option><option>N</option><option>O</option></select></label>
+        <label>Temperature (K)<input id="temperatureK" type="number" step="1" value="600" /></label>
+      </div>
+      <div class="grid two">
+        <label>Requested slab thickness (nm)<input id="slabThicknessNm" type="number" step="0.1" value="4.5" /></label>
+        <label>Boundary problem<select id="boundaryType"><option value="surface_return">Surface return vs bulk transmission</option><option value="bulk_transmission">Bulk transmission</option><option value="retention">Retention between two absorbing boundaries</option></select></label>
+      </div>
+      <button onclick="prepareEnergyInputs()">Calculate domain and generate energy inputs</button>
+      <div id="domainSummary" class="summary"></div>
+    </section>
 
-    <hr>
+    <section class="card">
+      <h2>3. Required user-supplied energy values</h2>
+      <p class="hint">All energies are in eV. These values are not estimated by the tool. The tool only creates the required input list from the alloy composition.</p>
+      <div id="energyFields" class="energy-fields"></div>
+    </section>
 
-    <h2>Step 1 — System Setup</h2>
+    <section class="card">
+      <h2>4. Run trial simulation</h2>
+      <button onclick="runSimulation()">Run simulation and visualise pathway</button>
+      <div id="runStatus" class="summary"></div>
+    </section>
 
-    <label for="host">Host Element</label>
-    <input type="text" id="host" value="Fe">
+    <section class="card">
+      <h2>5. Quantitative outputs</h2>
+      <div id="metricsCards" class="metrics-grid"></div>
+    </section>
 
-    <label for="elements">Alloying Elements (comma separated)</label>
-    <input type="text" id="elements" value="C,Cr">
+    <section class="card">
+      <h2>6. Pathway visualisation</h2>
+      <div id="pathPlot" class="plot"></div>
+      <div id="survivalPlot" class="plot"></div>
+    </section>
 
-    <label for="crystal">Crystal Structure</label>
-    <select id="crystal">
-        <option value="BCC">BCC</option>
-        <option value="FCC">FCC</option>
-    </select>
+    <section class="card">
+      <h2>Export</h2>
+      <button class="secondary" onclick="downloadInputJson()">Download input JSON</button>
+      <button class="secondary" onclick="downloadResultJson()">Download result JSON</button>
+    </section>
+  </main>
 
-    <label for="interstitial">Interstitial Species</label>
-    <select id="interstitial">
-        <option>H</option>
-        <option>D</option>
-        <option>T</option>
-        <option>C</option>
-        <option>N</option>
-        <option>O</option>
-    </select>
-
-    <label for="temperature">Temperature (K)</label>
-    <input type="number" id="temperature" value="600">
-
-    <label for="domain">Domain Size (Nx,Ny,Nz)</label>
-    <input type="text" id="domain" value="8,8,16">
-
-    <label for="boundary">Boundary Condition</label>
-    <select id="boundary">
-        <option value="surface_return">Surface Return</option>
-        <option value="bulk_transmission">Bulk Transmission</option>
-        <option value="retention">Retention</option>
-    </select>
-
-    <br><br>
-
-    <button type="button" onclick="getEnergyTemplate()">
-        Generate Required Energy Inputs
-    </button>
-
-    <hr>
-
-    <h2>Step 2 — Required Energy Values</h2>
-
-    <div id="energyFields"></div>
-
-    <br>
-
-    <button type="button" onclick="runSimulation()">
-        Run Simulation
-    </button>
-
-    <hr>
-
-    <h2>Simulation Results</h2>
-
-    <pre id="metrics">Results will appear here...</pre>
-
-    <div id="pathPlot" style="height:450px;"></div>
-
-    <br>
-
-    <div id="survivalPlot" style="height:450px;"></div>
-
-</div>
-
+  <footer>IDOMS trial tool. Alloy-only module. Stress, defects, grain boundaries and database support are intentionally excluded in this version.</footer>
+  <script src="script.js"></script>
 </body>
 </html>
