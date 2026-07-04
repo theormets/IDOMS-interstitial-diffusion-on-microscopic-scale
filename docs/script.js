@@ -5,7 +5,7 @@ API_BASE is empty by default, so this GitHub Pages trial runs fully in-browser.
 Later, set API_BASE to your Render/FastAPI URL.
 */
 
-const API_BASE = ""; // Example later: "https://idoms-backend.onrender.com"
+const API_BASE = "https://idoms-backend.onrender.com"; // Example later: "https://idoms-backend.onrender.com"
 const MAX_ALLOY_ELEMENTS = 5;
 const MIN_ATOMS_PER_ALLOY = 3;
 const MIN_NX_NY = 6;
