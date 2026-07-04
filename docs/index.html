@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Interstitial Pathway Tool</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="script.js" defer></script>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Interstitial Pathway Tool – Trial Version</h1>
+
+    <p>
+        This trial version does not estimate migration energies.
+        All energy values must be supplied by the user in eV.
+    </p>
+
+    <hr>
+
+    <h2>Step 1 — System Setup</h2>
+
+    <label for="host">Host Element</label>
+    <input type="text" id="host" value="Fe">
+
+    <label for="elements">Alloying Elements (comma separated)</label>
+    <input type="text" id="elements" value="C,Cr">
+
+    <label for="crystal">Crystal Structure</label>
+    <select id="crystal">
+        <option value="BCC">BCC</option>
+        <option value="FCC">FCC</option>
+    </select>
+
+    <label for="interstitial">Interstitial Species</label>
+    <select id="interstitial">
+        <option>H</option>
+        <option>D</option>
+        <option>T</option>
+        <option>C</option>
+        <option>N</option>
+        <option>O</option>
+    </select>
+
+    <label for="temperature">Temperature (K)</label>
+    <input type="number" id="temperature" value="600">
+
+    <label for="domain">Domain Size (Nx,Ny,Nz)</label>
+    <input type="text" id="domain" value="8,8,16">
+
+    <label for="boundary">Boundary Condition</label>
+    <select id="boundary">
+        <option value="surface_return">Surface Return</option>
+        <option value="bulk_transmission">Bulk Transmission</option>
+        <option value="retention">Retention</option>
+    </select>
+
+    <br><br>
+
+    <button type="button" onclick="getEnergyTemplate()">
+        Generate Required Energy Inputs
+    </button>
+
+    <hr>
+
+    <h2>Step 2 — Required Energy Values</h2>
+
+    <div id="energyFields"></div>
+
+    <br>
+
+    <button type="button" onclick="runSimulation()">
+        Run Simulation
+    </button>
+
+    <hr>
+
+    <h2>Simulation Results</h2>
+
+    <pre id="metrics">Results will appear here...</pre>
+
+    <div id="pathPlot" style="height:450px;"></div>
+
+    <br>
+
+    <div id="survivalPlot" style="height:450px;"></div>
+
+</div>
+
+</body>
+</html>
