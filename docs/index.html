@@ -4,7 +4,41 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IDOMS — Interstitial Diffusion on Microscopic Scale</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=2026-07-05-06" />
+  <style id="idoms-critical">
+    /* Critical layout — inlined so the sidebar, page switching and figure
+       sizing work even if an old external stylesheet is cached. */
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#f4f6f8;color:#1f2933;line-height:1.55}
+    .app{display:flex;min-height:100vh}
+    .sidebar{width:248px;flex:0 0 248px;background:linear-gradient(185deg,#0f172a 0%,#0f3b3a 70%,#0f766e 100%);color:#e6edf3;position:sticky;top:0;align-self:flex-start;height:100vh;padding:26px 18px;display:flex;flex-direction:column;gap:26px}
+    .brand{display:flex;flex-direction:column;gap:6px;padding:0 6px}
+    .brand-mark{font-size:26px;font-weight:800;letter-spacing:.08em;color:#fff}
+    .brand-sub{font-size:12px;color:#9fb3c8;line-height:1.35}
+    .nav{display:flex;flex-direction:column;gap:4px}
+    .nav-link{display:block;padding:11px 14px;border-radius:10px;color:#cbd5e1;text-decoration:none;font-weight:600;font-size:15px;border-left:3px solid transparent;cursor:pointer}
+    .nav-link:hover{background:rgba(255,255,255,.08);color:#fff}
+    .nav-link.active{background:rgba(255,255,255,.14);color:#fff;border-left-color:#5eead4}
+    .nav-foot{margin-top:auto;font-size:12px;color:#8aa0b6;padding:0 6px;line-height:1.5}
+    .content{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+    .view{display:none}
+    .view.active{display:block}
+    .hero{display:flex;justify-content:space-between;gap:28px;align-items:center}
+    .hero-affil{text-align:right;font-size:14px;line-height:1.6}
+    main{max-width:1180px;margin:28px auto;padding:0 24px;width:100%}
+    .figure-wrap{text-align:center}
+    .figure-wrap img{max-width:100%;height:auto;display:block;margin:0 auto}
+    @media(max-width:960px){
+      .app{flex-direction:column}
+      .sidebar{width:100%;flex-basis:auto;height:auto;position:static;flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px;padding:16px 18px}
+      .brand{flex-direction:row;align-items:baseline;gap:10px}
+      .brand-sub{display:none}
+      .nav{flex-direction:row;flex-wrap:wrap;gap:6px}
+      .nav-foot{display:none}
+      .hero{flex-direction:column;align-items:flex-start}
+      .hero-affil{text-align:left}
+    }
+  </style>
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
   <script>
     window.MathJax = {
@@ -18,18 +52,11 @@
   <div class="app">
     <!-- ================= SIDEBAR NAV ================= -->
     <aside class="sidebar">
-      <div class="brand">
-        <span class="brand-mark">IDOMS</span>
-        <span class="brand-sub">Interstitial Diffusion on Microscopic Scale</span>
-      </div>
       <nav class="nav">
         <a href="#" class="nav-link active" data-view="home">IDOMS</a>
         <a href="#" class="nav-link" data-view="worked">Worked-Out Example</a>
         <a href="#" class="nav-link" data-view="theory">Theoretical Formulation</a>
       </nav>
-      <div class="nav-foot">
-        Theoretical Metallurgy Group<br />NIT Tiruchirappalli
-      </div>
     </aside>
 
     <div class="content">
@@ -281,7 +308,7 @@
           <section class="card">
             <h2>Consolidated visual results</h2>
             <div class="figure-wrap">
-              <img src="idoms_worked_example.png" alt="Consolidated worked-example figure: minimum-resistance channel, barrier profile, global survival, and site-resolved survival map." />
+              <img src="idoms_worked_example.png" style="max-width:100%;height:auto;display:block;margin:0 auto" alt="Consolidated worked-example figure: minimum-resistance channel, barrier profile, global survival, and site-resolved survival map." />
             </div>
           </section>
 
@@ -519,6 +546,6 @@
     </div>
   </div>
 
-  <script src="script.js?v=2026-07-05-04"></script>
+  <script src="script.js?v=2026-07-05-06"></script>
 </body>
 </html>
