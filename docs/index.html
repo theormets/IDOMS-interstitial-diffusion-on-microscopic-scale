@@ -3,135 +3,522 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IDOMS — Interstitial Diffusion Tool</title>
+  <title>IDOMS — Interstitial Diffusion on Microscopic Scale</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.plot.ly/plotly-2.30.0.min.js"></script>
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
 </head>
 <body>
-  <header class="hero">
-    <div>
-      <h1>IDOMS</h1>
-      <p class="subtitle">Interstitial Diffusion on Microscopic Scale — two-alloy graph/KMC trial tool</p>
+  <div class="app">
+    <!-- ================= SIDEBAR NAV ================= -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">IDOMS</span>
+        <span class="brand-sub">Interstitial Diffusion on Microscopic Scale</span>
+      </div>
+      <nav class="nav">
+        <a href="#" class="nav-link active" data-view="home">IDOMS</a>
+        <a href="#" class="nav-link" data-view="worked">Worked-Out Example</a>
+        <a href="#" class="nav-link" data-view="theory">Theoretical Formulation</a>
+      </nav>
+      <div class="nav-foot">
+        Theoretical Metallurgy Group<br />NIT Tiruchirappalli
+      </div>
+    </aside>
+
+    <div class="content">
+
+      <!-- ================= VIEW: HOME (central tool) ================= -->
+      <section id="view-home" class="view active">
+        <header class="hero">
+          <div class="hero-title">
+            <h1>IDOMS</h1>
+            <p class="subtitle">Interstitial Diffusion on Microscopic Scale</p>
+          </div>
+          <div class="hero-affil">
+            Theoretical Metallurgy Group,<br />
+            Department of Metallurgical and Materials Engineering,<br />
+            National Institute of Technology Tiruchirappalli.<br />
+            Tamil Nadu, India.
+          </div>
+        </header>
+
+        <main>
+          <section class="card notice">
+            <h2>Scope</h2>
+            <p>
+              IDOMS is a pathway-resolved modelling tool for interstitial diffusion in crystalline materials.
+              It treats crystallographic interstitial sites as internal voids and the allowed jumps between them
+              as connected transport pathways, thereby extending percolation theory to include crystallography and
+              local energetics. In this energy-weighted percolation framework, the motion of an interstitial species
+              is governed by site energies, saddle-point barriers, trapping regions, and absorbing boundaries.
+            </p>
+            <p>
+              The approach enables quantitative tracking of how alloying elements, strain fields, defects, grain
+              boundaries, interfaces, and surfaces reshape the diffusion landscape of an interstitial atom. The present
+              version is a proof-of-concept implementation focused on alloying effects in ternary crystalline systems.
+              It calculates pathway-level quantities such as mean first-passage time, surface-return probability,
+              bulk-transmission probability, survival probability, dominant transport channel, bottleneck barrier, and
+              trap-residence fraction.
+            </p>
+            <p>
+              The default worked example models hydrogen diffusion in BCC Fe–C–Cr. The baseline hydrogen migration
+              barrier in BCC Fe is taken as 0.088 eV from the first-principles work of Jiang and Carter [1]. The
+              hydrogen–carbon attractive site-energy shift is taken as approximately 0.09 eV from first-principles
+              hydrogen-trap energetics in α-Fe [2]. Chromium is included as a substitutional alloying element in the
+              Fe–Cr lattice field; in the minimal-input demonstration, direct H–Cr trapping is treated conservatively
+              as weak/repulsive rather than strongly attractive, consistent with first-principles Fe–Cr
+              hydrogen-transport studies [3]. The local C-associated saddle penalty is used as a transparent model input
+              to represent barrier distortion near carbon-rich environments and can be edited by the user.
+            </p>
+            <div class="refs">
+              <span class="refs-title">References used for default values</span>
+              <ol>
+                <li>D. E. Jiang and E. A. Carter, <em>Diffusion of interstitial hydrogen into and through BCC Fe from first principles</em>, Physical Review B, 70, 064102, 2004.</li>
+                <li>W. A. Counts, C. Wolverton and R. Gibala, <em>First-principles energetics of hydrogen traps in α-Fe: Point defects</em>, Acta Materialia, 58, 4730–4741, 2010.</li>
+                <li>A. J. Samin, D. A. Andersson, E. F. Holby and B. P. Uberuaga, <em>First-principles localized cluster expansion study of the kinetics of hydrogen diffusion in homogeneous and heterogeneous Fe–Cr alloys</em>, Physical Review B, 99, 014110, 2019.</li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>1. Alloy composition</h2>
+            <div class="grid two">
+              <label>Host element <input id="hostElement" value="Fe" /></label>
+              <label>Lattice parameter, a (Å) <input id="latticeA" type="number" step="0.0001" value="2.866" /></label>
+            </div>
+            <p class="hint">Enter up to two alloying elements in atomic percent. Host at.% is calculated automatically.</p>
+            <table class="composition-table">
+              <thead><tr><th>Alloying element</th><th>at.%</th><th></th></tr></thead>
+              <tbody id="compositionRows"></tbody>
+            </table>
+            <button id="addAlloyBtn" class="secondary" onclick="addCompositionRow()">+ Add alloying element</button>
+            <div id="compositionSummary" class="summary compact"></div>
+          </section>
+
+          <section class="card">
+            <h2>2. Crystal, interstitial and boundary setup</h2>
+            <div class="grid three">
+              <label>Crystal structure
+                <select id="crystalStructure"><option value="BCC">BCC</option><option value="FCC">FCC</option></select>
+              </label>
+              <label>Interstitial species
+                <select id="interstitialSpecies"><option>H</option><option>D</option><option>T</option><option>C</option><option>N</option><option>O</option></select>
+              </label>
+              <label>Interstitial-site network
+                <select id="siteNetwork"><option value="auto">Auto</option><option value="tetrahedral">Tetrahedral</option><option value="octahedral">Octahedral</option><option value="tetra_octa">Tetrahedral + octahedral</option></select>
+              </label>
+            </div>
+            <div class="grid three">
+              <label>Temperature (K) <input id="temperatureK" type="number" step="1" value="600" /></label>
+              <label>Requested slab thickness (nm) <input id="slabThicknessNm" type="number" step="0.1" value="3.4" /></label>
+              <label>Boundary problem
+                <select id="boundaryType"><option value="surface_return">Surface return vs bulk transmission</option><option value="bulk_transmission">Bulk transmission</option><option value="retention">Retention between two absorbing boundaries</option></select>
+              </label>
+            </div>
+            <button onclick="prepareEnergyInputs()">Calculate domain and generate energy inputs</button>
+            <div id="domainSummary" class="summary"></div>
+          </section>
+
+          <section class="card">
+            <h2>3. Required user-supplied energy values</h2>
+            <p class="hint">
+              Vital-energy mode. All energies are in eV. You supply one baseline migration barrier plus, for each
+              alloying element, a site-energy shift ΔU and a saddle-energy shift ΔE‡.
+              Negative ΔU means the interstitial is stabilised/trapped near that solute; positive ΔE‡ means the solute
+              raises the local jump barrier. Host site energy is fixed at 0, and surface/bulk exit barriers default to the
+              host migration barrier (no separate inputs required in this version). Defaults are pre-filled with the
+              validation-example values.
+            </p>
+            <div id="energyFields" class="energy-fields"></div>
+          </section>
+
+          <section class="card">
+            <h2>4. Run simulation</h2>
+            <button onclick="runSimulation()">Run backend simulation and visualise pathway</button>
+            <div id="runStatus" class="summary compact"></div>
+          </section>
+
+          <section class="card">
+            <h2>5. Quantitative outputs</h2>
+            <div id="metricsCards" class="metrics-grid"></div>
+          </section>
+
+          <section class="card">
+            <h2>6. Lattice-aware minimum-resistance channel</h2>
+            <p class="hint">Continuous surface ↔ injection ↔ bulk channel through a thin lattice y-slice, coloured by local activation barrier.</p>
+            <div id="pathPlot" class="plot"></div>
+          </section>
+
+          <section class="card">
+            <h2>7. Activation-barrier profile along the channel</h2>
+            <p class="hint">Per-jump activation barrier from the surface exit to the bulk exit, with the bottleneck and the injection point marked.</p>
+            <div id="barrierPlot" class="plot small"></div>
+          </section>
+
+          <section class="card">
+            <h2>8. Global survival probability</h2>
+            <p class="hint">Fraction of the injected population still resident versus time, with the mean first-passage time marked.</p>
+            <div id="survivalPlot" class="plot small"></div>
+          </section>
+
+          <section class="card">
+            <h2>9. Site-resolved survival map at t = MFPT</h2>
+            <p class="hint">Per-site probability of surviving to the mean first-passage time, projected onto the depth plane.</p>
+            <div id="survivalMapPlot" class="plot"></div>
+          </section>
+
+          <section class="card">
+            <h2>Export</h2>
+            <button class="secondary" onclick="downloadInputJson()">Download input JSON</button>
+            <button class="secondary" onclick="downloadResultJson()">Download result JSON</button>
+          </section>
+        </main>
+      </section>
+
+      <!-- ================= VIEW: WORKED-OUT EXAMPLE ================= -->
+      <section id="view-worked" class="view">
+        <header class="page-head">
+          <h1>Worked-Out Example</h1>
+          <p class="subtitle">Hydrogen transport in BCC Fe–1 at.% C–9 at.% Cr at 600 K</p>
+        </header>
+
+        <main>
+          <section class="card notice">
+            <h2>Overview</h2>
+            <p>
+              This worked example demonstrates how IDOMS converts literature-based energetic inputs into a
+              pathway-resolved description of interstitial hydrogen transport. The model system is a BCC
+              Fe–1 at.% C–9 at.% Cr alloy, with hydrogen diffusing on the tetrahedral interstitial network at
+              T = 600 K. Carbon is treated as an octahedral interstitial solute that introduces an attractive
+              hydrogen site-energy shift and a local saddle-barrier penalty. Chromium is included as a substitutional
+              alloying element and is treated as a weak repulsive/modifying solute rather than a strong hydrogen trap.
+            </p>
+            <p>
+              The default energetic inputs are chosen from first-principles and kinetic-transport literature. The
+              baseline hydrogen migration barrier in BCC Fe is set to E<sub>m</sub><sup>0</sup> = 0.088 eV following
+              Jiang and Carter. The carbon-associated hydrogen trapping/site-energy scale is taken as
+              ΔU<sub>C</sub> ≈ −0.09 eV, based on first-principles hydrogen-trap energetics in α-Fe. Chromium-associated
+              hydrogen transport modification is represented conservatively as a weak site-energy/saddle-energy
+              perturbation, consistent with first-principles Fe–Cr hydrogen-transport studies. The C-associated saddle
+              shift is a transparent local-barrier input representing distortion of the hydrogen jump landscape near
+              carbon-rich environments; this value is editable by the user.
+            </p>
+            <p>
+              The purpose is not to claim a universal Fe–C–Cr parameter set, but to show how a small number of
+              physically meaningful energy inputs can be transformed into quantitative pathway metrics.
+            </p>
+          </section>
+
+          <section class="card">
+            <h2>Input values</h2>
+            <div class="grid two">
+              <div>
+                <h3 class="io-head">System &amp; domain</h3>
+                <table class="io-table">
+                  <tbody>
+                    <tr><td>Host element</td><td>Fe (BCC)</td></tr>
+                    <tr><td>Lattice parameter, a</td><td>2.866 Å</td></tr>
+                    <tr><td>Alloying elements</td><td>C 1.0 at.%, Cr 9.0 at.%</td></tr>
+                    <tr><td>Host content</td><td>90.0 at.%</td></tr>
+                    <tr><td>Interstitial species</td><td>H (tetrahedral network)</td></tr>
+                    <tr><td>Temperature</td><td>600 K</td></tr>
+                    <tr><td>Requested slab thickness</td><td>3.4 nm</td></tr>
+                    <tr><td>Domain</td><td>5 × 5 × 12 unit cells</td></tr>
+                    <tr><td>Physical size</td><td>1.433 × 1.433 × 3.439 nm</td></tr>
+                    <tr><td>Boundary problem</td><td>Surface return vs bulk transmission</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <h3 class="io-head">Energy inputs (eV)</h3>
+                <table class="io-table">
+                  <tbody>
+                    <tr><td>Host migration barrier, E<sub>m</sub><sup>0</sup></td><td>0.088</td></tr>
+                    <tr><td>Surface-exit barrier</td><td>0.088 (= E<sub>m</sub><sup>0</sup>)</td></tr>
+                    <tr><td>Bulk-exit barrier</td><td>0.088 (= E<sub>m</sub><sup>0</sup>)</td></tr>
+                    <tr><td>ΔU<sub>C</sub> (site shift)</td><td>−0.090</td></tr>
+                    <tr><td>ΔE‡<sub>C</sub> (saddle shift)</td><td>+0.070</td></tr>
+                    <tr><td>ΔU<sub>Cr</sub> (site shift)</td><td>+0.025</td></tr>
+                    <tr><td>ΔE‡<sub>Cr</sub> (saddle shift)</td><td>+0.007</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>Quantitative numerical results</h2>
+            <div class="metrics-grid">
+              <div class="metric"><div class="value">9.569e-11</div><div class="label">Mean first-passage time (s)</div></div>
+              <div class="metric"><div class="value">0.2249</div><div class="label">Probability of bulk transmission</div></div>
+              <div class="metric"><div class="value">0.7751</div><div class="label">Probability of surface return</div></div>
+              <div class="metric"><div class="value">0.0941</div><div class="label">Critical bottleneck barrier (eV)</div></div>
+              <div class="metric"><div class="value">7.398e-12</div><div class="label">Minimum path resistance (s)</div></div>
+              <div class="metric"><div class="value">1.4660</div><div class="label">Pathway tortuosity</div></div>
+              <div class="metric"><div class="value">0.0902</div><div class="label">Mean activation barrier on dominant path (eV)</div></div>
+              <div class="metric"><div class="value">0.1997</div><div class="label">Trap residence fraction</div></div>
+              <div class="metric"><div class="value">0.9922</div><div class="label">Accessible interstitial fraction</div></div>
+              <div class="metric"><div class="value">1.1025</div><div class="label">Retention factor vs ideal host</div></div>
+            </div>
+            <h3 class="io-head">Network and configuration</h3>
+            <table class="io-table wide">
+              <tbody>
+                <tr><td>Fe lattice sites</td><td>600</td><td>H tetrahedral sites</td><td>4180</td></tr>
+                <tr><td>H–H jump edges</td><td>7780</td><td>C on octahedral sites</td><td>6</td></tr>
+                <tr><td>Cr substitutional sites</td><td>54</td><td>Dominant absorbing boundary</td><td>Surface</td></tr>
+                <tr><td>Transport channel length</td><td>49 jumps</td><td>Channel z-span</td><td>11.5 cells</td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="card">
+            <h2>Consolidated visual results</h2>
+            <div class="figure-wrap">
+              <img src="idoms_worked_example.png" alt="Consolidated worked-example figure: minimum-resistance channel, barrier profile, global survival, and site-resolved survival map." />
+            </div>
+          </section>
+
+          <section class="card">
+            <h2>Description of the plots</h2>
+            <div class="panel-desc">
+              <h3>Panel (a): Minimum-resistance H channel through the injection site.</h3>
+              <p>
+                This panel shows the crystallographic transport channel extracted from the energy-weighted interstitial
+                graph. Grey points represent projected Fe lattice sites, light-blue points represent tetrahedral H sites,
+                red diamonds mark octahedral carbon sites, and green triangles mark substitutional chromium atoms. Purple
+                points indicate low-site-energy trap regions, while red crosses indicate the strongest high-barrier edge
+                midpoints. The thick green path is the minimum-resistance hydrogen transport channel passing through the
+                injection point. The star marks the injection site, and square markers indicate the surface and bulk
+                absorbing boundaries. The zigzag shape is expected because hydrogen moves by discrete tetrahedral-site
+                jumps rather than by a continuous straight-line trajectory.
+              </p>
+              <h3>Panel (b): Activation-barrier profile along the channel.</h3>
+              <p>
+                This panel plots the local activation barrier for each jump along the extracted channel. The dashed
+                horizontal line gives the baseline host migration barrier E<sub>m</sub><sup>0</sup> = 0.088 eV. Peaks
+                above this line correspond to alloy-modified bottleneck regions, especially near carbon-associated saddle
+                perturbations. The highest peak is identified as the bottleneck barrier, which controls the most difficult
+                jump along the channel.
+              </p>
+              <h3>Panel (c): Global survival probability.</h3>
+              <p>
+                This panel shows the probability S(t) that hydrogen remains inside the simulation domain without being
+                absorbed at either the surface or bulk boundary. The vertical dotted line marks the mean first-passage
+                time. A faster decay of S(t) indicates faster escape from the domain, while a slower decay indicates
+                longer retention.
+              </p>
+              <h3>Panel (d): Site-resolved survival probability at t = MFPT.</h3>
+              <p>
+                This map shows the probability that hydrogen starting from a given interstitial site survives until the
+                mean first-passage time. Regions with high survival probability correspond to locally retaining
+                environments, while low-survival regions are more strongly connected to absorbing boundaries. This plot
+                complements the single transport channel by showing the spatial distribution of retention across the
+                interstitial network.
+              </p>
+            </div>
+          </section>
+        </main>
+      </section>
+
+      <!-- ================= VIEW: THEORETICAL FORMULATION ================= -->
+      <section id="view-theory" class="view">
+        <header class="page-head">
+          <h1>Theoretical Formulation</h1>
+          <p class="subtitle">Energy-weighted transport on a crystallographic interstitial network</p>
+        </header>
+
+        <main>
+          <section class="card theory">
+            <p>
+              IDOMS models interstitial diffusion as an energy-weighted transport problem on a crystallographic network.
+              Instead of treating diffusion only through an effective diffusivity, the tool explicitly constructs the set
+              of interstitial sites available to the diffusing species and the possible jumps between neighbouring sites.
+              The central idea is that an interstitial atom does not move through a continuous empty space, but through a
+              discrete network of crystallographic voids connected by saddle regions. Alloying elements modify this network
+              by changing the local site energies and jump barriers.
+            </p>
+
+            <h3>1. Crystal-to-network representation</h3>
+            <p>
+              For a selected crystal structure, such as BCC or FCC, the tool first constructs the host lattice and the
+              corresponding interstitial-site network. The host atoms define the excluded-volume skeleton, while
+              tetrahedral and/or octahedral interstitial sites define the accessible voids for the diffusing species.
+              The interstitial network is represented as a graph,
+            </p>
+            <p>$$ G = (V, E), $$</p>
+            <p>
+              where \(V\) is the set of interstitial sites and \(E\) is the set of allowed jumps between neighbouring
+              interstitial sites. Each node \(i \in V\) represents a possible position of the diffusing atom, and each edge
+              \(i \rightarrow j\) represents a crystallographically allowed jump from site \(i\) to site \(j\). The domain
+              size is defined in unit cells, \(N_x \times N_y \times N_z\), which is unitless. The corresponding physical
+              dimensions are
+            </p>
+            <p>$$ L_x = N_x\, a, \qquad L_y = N_y\, a, \qquad L_z = N_z\, a, $$</p>
+            <p>
+              where \(a\) is the lattice parameter. The tool chooses a domain large enough to represent the entered alloy
+              composition while maintaining a computationally efficient graph size.
+            </p>
+
+            <h3>2. Alloy composition and local energetic field</h3>
+            <p>
+              Once the host and alloy composition are specified, alloying atoms are placed on the host lattice sites
+              according to the prescribed atomic percent. In the proof-of-concept version, the alloy configuration is
+              generated as a stochastic substitutional distribution unless otherwise specified. IDOMS separates two
+              physically distinct energetic effects. The first is the <strong>site energy</strong> \(U_i\), which represents
+              the relative energy of the diffusing species when it occupies interstitial site \(i\). A lower value of \(U_i\)
+              corresponds to an attractive or trapping environment. The second is the <strong>saddle energy</strong>
+              \(E_{ij}^{\ddagger}\), the energy of the transition state between sites \(i\) and \(j\). Alloying elements can
+              raise or lower this saddle energy, thereby changing the difficulty of a jump. The activation barrier for a jump
+              from \(i\) to \(j\) is then
+            </p>
+            <p>$$ E_{i\rightarrow j}^{\mathrm{act}} = E_{ij}^{\ddagger} - U_i. $$</p>
+            <p>
+              This distinction is important: a trap is not only a low-energy site; it may also be difficult to escape from,
+              because the activation barrier out of that site depends on the difference between the saddle energy and the
+              site energy. In the minimal quantitative mode, the user supplies the essential energy inputs in eV — typically
+              the host migration barrier, surface-exit barrier, bulk-exit barrier, and the most important solute-associated
+              site and saddle perturbations. The tool does not estimate these values in the proof-of-concept version; it only
+              uses the user-provided values.
+            </p>
+
+            <h3>3. Jump rates from activation barriers</h3>
+            <p>Each allowed jump is assigned an Arrhenius transition rate,</p>
+            <p>$$ k_{ij} = \nu_0\, \exp\!\left( -\frac{E_{i\rightarrow j}^{\mathrm{act}}}{k_B T} \right), $$</p>
+            <p>
+              where \(\nu_0\) is the attempt frequency, \(k_B\) is the Boltzmann constant, and \(T\) is the absolute
+              temperature. A low-barrier connection becomes a fast pathway, while a high-barrier connection becomes a
+              bottleneck. The result is an energy-weighted interstitial network in which both crystallographic connectivity
+              and local alloy energetics determine the preferred transport route.
+            </p>
+
+            <h3>4. Absorbing boundaries: surface return and bulk transmission</h3>
+            <p>
+              To quantify whether the interstitial atom remains in the material, returns to the surface, or transmits into
+              the bulk, IDOMS uses absorbing boundaries. A surface boundary represents return, escape, or recombination at
+              the entry side; a bulk boundary represents through-thickness transmission or onward penetration. For a site
+              \(i\) close to the surface, the tool assigns a surface absorption rate,
+            </p>
+            <p>$$ k_i^{\mathrm{surf}} = \nu_0\, \exp\!\left( -\frac{E_{\mathrm{surf}} - U_i}{k_B T} \right). $$</p>
+            <p>Similarly, for a site \(i\) close to the bulk boundary, the bulk absorption rate is</p>
+            <p>$$ k_i^{\mathrm{bulk}} = \nu_0\, \exp\!\left( -\frac{E_{\mathrm{bulk}} - U_i}{k_B T} \right). $$</p>
+            <p>These boundary rates allow the tool to distinguish between surface return and bulk transmission.</p>
+
+            <h3>5. Master equation formulation</h3>
+            <p>
+              The probability \(p_i(t)\) that the interstitial atom occupies site \(i\) at time \(t\) evolves according to a
+              continuous-time master equation,
+            </p>
+            <p>$$ \frac{dp_i}{dt} = \sum_{j} k_{ji}\, p_j - p_i\!\left( \sum_j k_{ij} + k_i^{\mathrm{surf}} + k_i^{\mathrm{bulk}} \right). $$</p>
+            <p>In matrix form, this can be written as</p>
+            <p>$$ \frac{d\mathbf{p}}{dt} = Q\,\mathbf{p}, $$</p>
+            <p>
+              where \(Q\) is the transient generator matrix containing all jump rates and absorbing losses. This formulation
+              is the quantitative core of the tool. It is not a purely geometric percolation model; it is an energy-weighted,
+              crystallographically constrained transport model in which the survival, escape, and transmission probabilities
+              follow from the rate network.
+            </p>
+
+            <h3>6. Mean first-passage time</h3>
+            <p>
+              The mean first-passage time is the expected time taken for the interstitial atom to be absorbed at either
+              boundary. For each starting site \(i\), the mean first-passage time \(t_i\) satisfies
+            </p>
+            <p>$$ \left( \sum_j k_{ij} + k_i^{\mathrm{surf}} + k_i^{\mathrm{bulk}} \right) t_i - \sum_j k_{ij}\, t_j = 1. $$</p>
+            <p>The tool solves this linear system over the interstitial network. For an initial injection distribution \(w_i\), the reported mean first-passage time is</p>
+            <p>$$ \langle t_{\mathrm{FP}} \rangle = \sum_i w_i\, t_i. $$</p>
+            <p>A larger value indicates that the alloyed energy landscape retains the interstitial species for a longer time before absorption.</p>
+
+            <h3>7. Surface-return and bulk-transmission probabilities</h3>
+            <p>
+              The probability that a particle starting at site \(i\) is eventually absorbed at the surface, before reaching
+              the bulk boundary, is denoted \(q_i^{\mathrm{surf}}\). It satisfies
+            </p>
+            <p>$$ \left( \sum_j k_{ij} + k_i^{\mathrm{surf}} + k_i^{\mathrm{bulk}} \right) q_i^{\mathrm{surf}} - \sum_j k_{ij}\, q_j^{\mathrm{surf}} = k_i^{\mathrm{surf}}. $$</p>
+            <p>The corresponding bulk-transmission probability is \(q_i^{\mathrm{bulk}} = 1 - q_i^{\mathrm{surf}}\). For the initial injection distribution,</p>
+            <p>$$ P_{\mathrm{surface}} = \sum_i w_i\, q_i^{\mathrm{surf}}, \qquad P_{\mathrm{bulk}} = \sum_i w_i\, q_i^{\mathrm{bulk}}. $$</p>
+            <p>These two values quantify whether the alloyed domain preferentially returns the interstitial to the surface or allows it to transmit into the bulk.</p>
+
+            <h3>8. Survival probability</h3>
+            <p>
+              The global survival probability is the probability that the interstitial atom has not yet been absorbed at
+              either boundary at time \(t\). It is computed from the transient probability vector,
+            </p>
+            <p>$$ \mathbf{p}(t) = \exp(Q t)\, \mathbf{p}(0), $$</p>
+            <p>as</p>
+            <p>$$ S(t) = \sum_i p_i(t). $$</p>
+            <p>
+              This is the quantity shown in the survival-probability plot. A rapidly decaying curve indicates fast
+              absorption, whereas a slowly decaying curve indicates longer retention. The tool also computes a site-resolved
+              survival map: for each starting site \(i\), it evaluates the probability that a particle starting from that
+              site survives until a selected reference time, usually the mean first-passage time. This produces a spatial
+              map of regions that are more or less retaining.
+            </p>
+
+            <h3>9. Trap-residence fraction</h3>
+            <p>
+              The residence time at each site measures how long the interstitial is expected to spend there before
+              absorption. If \(r_i\) is the expected residence time at site \(i\), then the total residence time is
+              \(R_{\mathrm{total}} = \sum_i r_i\). Trap sites are identified as sites with sufficiently low site energy,
+              typically \(U_i < 0\) relative to the host reference. The trap-residence fraction is
+            </p>
+            <p>$$ f_{\mathrm{trap}} = \frac{\sum_{i \in \mathrm{trap}} r_i}{\sum_i r_i}. $$</p>
+            <p>This value quantifies how much of the interstitial lifetime is spent in energetically attractive regions.</p>
+
+            <h3>10. Minimum-resistance transport channel</h3>
+            <p>To visualise the dominant transport route, the tool converts each jump rate into a kinetic resistance,</p>
+            <p>$$ R_{ij} = \frac{1}{k_{ij}}. $$</p>
+            <p>
+              A low-rate jump has a high resistance, while a high-rate jump has a low resistance. The minimum-resistance
+              pathway is then obtained by finding the least-resistance path through the graph. The plotted pathway should
+              therefore be interpreted as a <strong>minimum-resistance transport channel</strong>, not as a single
+              stochastic trajectory. A stochastic trajectory would vary from run to run, whereas the minimum-resistance
+              channel identifies the most kinetically favourable route through the energy-weighted interstitial network.
+              Because the interstitial atom moves between discrete crystallographic sites, the pathway naturally appears
+              stepped or zigzagged. This is physically expected and reflects tetrahedral-to-tetrahedral or
+              octahedral-to-octahedral jumps in the crystal, not numerical noise.
+            </p>
+
+            <h3>11. Bottleneck barrier and pathway tortuosity</h3>
+            <p>Along the extracted channel, the tool records the activation barrier for every jump. The largest barrier along the channel is the bottleneck barrier,</p>
+            <p>$$ E_{\mathrm{bottleneck}} = \max_{(i,j)\in \mathrm{path}} E_{i\rightarrow j}^{\mathrm{act}}. $$</p>
+            <p>This value identifies the most difficult jump along the preferred transport route. The pathway tortuosity is calculated as</p>
+            <p>$$ \chi = \frac{L_{\mathrm{path}}}{L_{\mathrm{straight}}}, $$</p>
+            <p>
+              where \(L_{\mathrm{path}}\) is the total length of the extracted channel and \(L_{\mathrm{straight}}\) is the
+              straight-line distance between its endpoints. A value close to one indicates a nearly direct path, while a
+              larger value indicates a more tortuous route caused by crystallographic constraints and alloy-induced
+              energetic redirection.
+            </p>
+
+            <h3>12. Interpretation of the plots</h3>
+            <p>
+              The pathway plot shows the interstitial network, lattice points, alloying-element positions, trap regions,
+              high-barrier regions, injection point, surface/bulk boundaries, and the minimum-resistance channel. The
+              barrier-profile plot shows how the activation barrier changes along the extracted transport channel, with
+              peaks corresponding to local bottlenecks. The global survival-probability plot shows how quickly interstitial
+              atoms are absorbed by the boundaries, with the mean first-passage time marked. The site-resolved survival map
+              shows where the interstitial species is likely to survive longer if inserted at different positions in the
+              domain. Together, these outputs convert user-supplied alloy energetics into a quantitative and visual
+              description of interstitial transport. The central aim of IDOMS is therefore not only to report a
+              diffusivity-like number, but to show where the interstitial species moves, what it avoids, where it is
+              trapped, what barrier controls transport, and whether the material promotes retention, surface return, or
+              bulk transmission.
+            </p>
+          </section>
+        </main>
+      </section>
+
+      <footer class="site-foot">IDOMS trial tool · Two-alloy module · No database, no energy estimation · Theoretical Metallurgy Group, NIT Tiruchirappalli.</footer>
     </div>
-    <div class="badge">User-supplied energies only</div>
-  </header>
+  </div>
 
-  <main>
-    <section class="card notice">
-      <h2>Scope</h2>
-      <p>
-        This version supports a host + up to two alloying elements. It does not estimate energies.
-        The backend constructs a lattice/interstitial graph, uses user-supplied site and saddle energies,
-        computes first-passage quantities, and returns lattice-aware pathway visualisation data.
-        The default inputs reproduce the worked validation example (BCC Fe–1C–9Cr, H at 600 K); running
-        with the defaults returns results identical to the validation script.
-      </p>
-    </section>
-
-    <section class="card">
-      <h2>0. Backend connection</h2>
-      <label>Backend API URL
-        <input id="backendUrl" value="https://idoms-backend.onrender.com" />
-      </label>
-      <button class="secondary" onclick="checkBackend()">Check backend</button>
-      <div id="backendStatus" class="summary compact">Backend not checked.</div>
-    </section>
-
-    <section class="card">
-      <h2>1. Alloy composition</h2>
-      <div class="grid two">
-        <label>Host element <input id="hostElement" value="Fe" /></label>
-        <label>Lattice parameter, a (Å) <input id="latticeA" type="number" step="0.0001" value="2.866" /></label>
-      </div>
-      <p class="hint">Enter up to two alloying elements in atomic percent. Host at.% is calculated automatically.</p>
-      <table class="composition-table">
-        <thead><tr><th>Alloying element</th><th>at.%</th><th></th></tr></thead>
-        <tbody id="compositionRows"></tbody>
-      </table>
-      <button id="addAlloyBtn" class="secondary" onclick="addCompositionRow()">+ Add alloying element</button>
-      <div id="compositionSummary" class="summary compact"></div>
-    </section>
-
-    <section class="card">
-      <h2>2. Crystal, interstitial and boundary setup</h2>
-      <div class="grid three">
-        <label>Crystal structure
-          <select id="crystalStructure"><option value="BCC">BCC</option><option value="FCC">FCC</option></select>
-        </label>
-        <label>Interstitial species
-          <select id="interstitialSpecies"><option>H</option><option>D</option><option>T</option><option>C</option><option>N</option><option>O</option></select>
-        </label>
-        <label>Interstitial-site network
-          <select id="siteNetwork"><option value="auto">Auto</option><option value="tetrahedral">Tetrahedral</option><option value="octahedral">Octahedral</option><option value="tetra_octa">Tetrahedral + octahedral</option></select>
-        </label>
-      </div>
-      <div class="grid three">
-        <label>Temperature (K) <input id="temperatureK" type="number" step="1" value="600" /></label>
-        <label>Requested slab thickness (nm) <input id="slabThicknessNm" type="number" step="0.1" value="3.4" /></label>
-        <label>Boundary problem
-          <select id="boundaryType"><option value="surface_return">Surface return vs bulk transmission</option><option value="bulk_transmission">Bulk transmission</option><option value="retention">Retention between two absorbing boundaries</option></select>
-        </label>
-      </div>
-      <button onclick="prepareEnergyInputs()">Calculate domain and generate energy inputs</button>
-      <div id="domainSummary" class="summary"></div>
-    </section>
-
-    <section class="card">
-      <h2>3. Required user-supplied energy values</h2>
-      <p class="hint">
-        Vital-energy mode. All energies are in eV. You supply one baseline migration barrier plus, for each
-        alloying element, a site-energy shift ΔU and a saddle-energy shift ΔE‡.
-        Negative ΔU means the interstitial is stabilised/trapped near that solute; positive ΔE‡ means the solute
-        raises the local jump barrier. Host site energy is fixed at 0, and surface/bulk exit barriers default to the
-        host migration barrier (no separate inputs required in this version). Defaults are pre-filled with the
-        validation-example values.
-      </p>
-      <div id="energyFields" class="energy-fields"></div>
-    </section>
-
-    <section class="card">
-      <h2>4. Run simulation</h2>
-      <button onclick="runSimulation()">Run backend simulation and visualise pathway</button>
-      <div id="runStatus" class="summary compact"></div>
-    </section>
-
-    <section class="card">
-      <h2>5. Quantitative outputs</h2>
-      <div id="metricsCards" class="metrics-grid"></div>
-    </section>
-
-    <section class="card">
-      <h2>6. Lattice-aware minimum-resistance channel</h2>
-      <p class="hint">Continuous surface ↔ injection ↔ bulk channel through a thin lattice y-slice, coloured by local activation barrier.</p>
-      <div id="pathPlot" class="plot"></div>
-    </section>
-
-    <section class="card">
-      <h2>7. Activation-barrier profile along the channel</h2>
-      <p class="hint">Per-jump activation barrier from the surface exit to the bulk exit, with the bottleneck and the injection point marked.</p>
-      <div id="barrierPlot" class="plot small"></div>
-    </section>
-
-    <section class="card">
-      <h2>8. Global survival probability</h2>
-      <p class="hint">Fraction of the injected population still resident versus time, with the mean first-passage time marked.</p>
-      <div id="survivalPlot" class="plot small"></div>
-    </section>
-
-    <section class="card">
-      <h2>9. Site-resolved survival map at t = MFPT</h2>
-      <p class="hint">Per-site probability of surviving to the mean first-passage time, projected onto the depth plane.</p>
-      <div id="survivalMapPlot" class="plot"></div>
-    </section>
-
-    <section class="card">
-      <h2>Export</h2>
-      <button class="secondary" onclick="downloadInputJson()">Download input JSON</button>
-      <button class="secondary" onclick="downloadResultJson()">Download result JSON</button>
-    </section>
-  </main>
-
-  <footer>IDOMS trial tool. Two-alloy module. No database, no energy estimation.</footer>
-  <script src="script.js?v=2026-07-05-03"></script>
+  <script src="script.js?v=2026-07-05-04"></script>
 </body>
 </html>

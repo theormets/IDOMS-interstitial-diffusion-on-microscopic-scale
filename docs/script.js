@@ -19,21 +19,42 @@ let latestEnergyTemplate = [];
 let latestResult = null;
 
 document.addEventListener("DOMContentLoaded", () => {
-  const urlInput = document.getElementById("backendUrl");
-  if (urlInput && !urlInput.value.trim()) urlInput.value = DEFAULT_BACKEND_URL;
+  // sidebar navigation
+  document.querySelectorAll(".nav-link").forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      showView(link.dataset.view);
+    });
+  });
+  // default composition
   addCompositionRow("C", 1.0);
   addCompositionRow("Cr", 9.0);
   updateCompositionSummary();
   updateAddButtonState();
 });
 
+function showView(name) {
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === `view-${name}`));
+  document.querySelectorAll(".nav-link").forEach(a => a.classList.toggle("active", a.dataset.view === name));
+  window.scrollTo(0, 0);
+  // Plotly plots created while their view was hidden need a resize once shown
+  if (name === "home" && window.Plotly) {
+    ["pathPlot", "barrierPlot", "survivalPlot", "survivalMapPlot"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && el.data) Plotly.Plots.resize(el);
+    });
+  }
+}
+
 function apiBase() {
-  const v = document.getElementById("backendUrl").value.trim().replace(/\/$/, "");
+  const el = document.getElementById("backendUrl");
+  const v = el ? el.value.trim().replace(/\/$/, "") : "";
   return v || DEFAULT_BACKEND_URL;
 }
 
 async function checkBackend() {
   const status = document.getElementById("backendStatus");
+  if (!status) return;
   try {
     const r = await fetch(`${apiBase()}/health`);
     const j = await r.json();
