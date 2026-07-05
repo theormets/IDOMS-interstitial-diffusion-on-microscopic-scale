@@ -23,6 +23,8 @@
         This version supports a host + up to two alloying elements. It does not estimate energies.
         The backend constructs a lattice/interstitial graph, uses user-supplied site and saddle energies,
         computes first-passage quantities, and returns lattice-aware pathway visualisation data.
+        The default inputs reproduce the worked validation example (BCC Fe–1C–9Cr, H at 600 K); running
+        with the defaults returns results identical to the validation script.
       </p>
     </section>
 
@@ -65,7 +67,7 @@
       </div>
       <div class="grid three">
         <label>Temperature (K) <input id="temperatureK" type="number" step="1" value="600" /></label>
-        <label>Requested slab thickness (nm) <input id="slabThicknessNm" type="number" step="0.1" value="4.5" /></label>
+        <label>Requested slab thickness (nm) <input id="slabThicknessNm" type="number" step="0.1" value="3.4" /></label>
         <label>Boundary problem
           <select id="boundaryType"><option value="surface_return">Surface return vs bulk transmission</option><option value="bulk_transmission">Bulk transmission</option><option value="retention">Retention between two absorbing boundaries</option></select>
         </label>
@@ -81,7 +83,8 @@
         alloying element, a site-energy shift ΔU and a saddle-energy shift ΔE‡.
         Negative ΔU means the interstitial is stabilised/trapped near that solute; positive ΔE‡ means the solute
         raises the local jump barrier. Host site energy is fixed at 0, and surface/bulk exit barriers default to the
-        host migration barrier (no separate inputs required in this version).
+        host migration barrier (no separate inputs required in this version). Defaults are pre-filled with the
+        validation-example values.
       </p>
       <div id="energyFields" class="energy-fields"></div>
     </section>
@@ -98,9 +101,27 @@
     </section>
 
     <section class="card">
-      <h2>6. Lattice-aware pathway visualisation</h2>
+      <h2>6. Lattice-aware minimum-resistance channel</h2>
+      <p class="hint">Continuous surface ↔ injection ↔ bulk channel through a thin lattice y-slice, coloured by local activation barrier.</p>
       <div id="pathPlot" class="plot"></div>
+    </section>
+
+    <section class="card">
+      <h2>7. Activation-barrier profile along the channel</h2>
+      <p class="hint">Per-jump activation barrier from the surface exit to the bulk exit, with the bottleneck and the injection point marked.</p>
+      <div id="barrierPlot" class="plot small"></div>
+    </section>
+
+    <section class="card">
+      <h2>8. Global survival probability</h2>
+      <p class="hint">Fraction of the injected population still resident versus time, with the mean first-passage time marked.</p>
       <div id="survivalPlot" class="plot small"></div>
+    </section>
+
+    <section class="card">
+      <h2>9. Site-resolved survival map at t = MFPT</h2>
+      <p class="hint">Per-site probability of surviving to the mean first-passage time, projected onto the depth plane.</p>
+      <div id="survivalMapPlot" class="plot"></div>
     </section>
 
     <section class="card">
@@ -111,6 +132,6 @@
   </main>
 
   <footer>IDOMS trial tool. Two-alloy module. No database, no energy estimation.</footer>
-  <script src="script.js?v=2026-07-05-02"></script>
+  <script src="script.js?v=2026-07-05-03"></script>
 </body>
 </html>

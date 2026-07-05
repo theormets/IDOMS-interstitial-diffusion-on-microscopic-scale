@@ -1,8 +1,19 @@
 const DEFAULT_BACKEND_URL = "https://idoms-backend.onrender.com";
 const MAX_ALLOY_ELEMENTS = 2;
 const MIN_ATOMS_PER_ALLOY = 4;
-const MIN_NX_NY = 6;
+const MIN_NX_NY = 5;
 const MIN_NZ = 8;
+
+// Literature-anchored default energy shifts (eV) used by the validation case,
+// so the tool's defaults reproduce the worked example exactly.
+const DEFAULT_SHIFTS = {
+  C:  {site: -0.090, saddle: 0.070},
+  Cr: {site:  0.025, saddle: 0.007}
+};
+
+const INFERNO = "Inferno";
+const TEAL = "#0f766e";
+
 let latestSetup = null;
 let latestEnergyTemplate = [];
 let latestResult = null;
@@ -151,9 +162,8 @@ function calculateEfficientDomain(composition, crystal, aAng, slabThicknessNm) {
   };
 }
 
-// Reduced vital-energy set (spec section "Recommended vital-energy mode"):
-//   host_migration_barrier  + per-alloy {site,saddle} shifts.
-//   2 alloys -> 5 values, 1 alloy -> 3 values, pure host -> 1 value.
+// Reduced vital-energy set: host_migration_barrier + per-alloy {site,saddle} shifts.
+// Per-element defaults reproduce the worked validation example.
 function buildEnergyTemplate(setup) {
   const I = setup.interstitial_species;
   const host = setup.host;
@@ -162,9 +172,10 @@ function buildEnergyTemplate(setup) {
     {key: "host_migration_barrier", label: `Baseline ${I} migration barrier in pure ${host}`, kind: "activation barrier", unit: "eV", default: defaultBarrier}
   ];
   for (const el of setup.alloying_elements) {
+    const d = DEFAULT_SHIFTS[el] || {site: 0.000, saddle: 0.000};
     template.push(
-      {key: `${el}_site_energy_shift`, label: `Site-energy shift ΔU for ${I} near ${el} (negative = attractive/trapping)`, kind: "site energy", unit: "eV", default: 0.000},
-      {key: `${el}_saddle_energy_shift`, label: `Saddle-energy shift ΔE‡ for ${I} jumps near ${el} (positive = local barrier)`, kind: "saddle energy", unit: "eV", default: 0.000}
+      {key: `${el}_site_energy_shift`, label: `Site-energy shift ΔU for ${I} near ${el} (negative = attractive/trapping)`, kind: "site energy", unit: "eV", default: d.site},
+      {key: `${el}_saddle_energy_shift`, label: `Saddle-energy shift ΔE‡ for ${I} jumps near ${el} (positive = local barrier)`, kind: "saddle energy", unit: "eV", default: d.saddle}
     );
   }
   return template;
@@ -230,7 +241,13 @@ async function runSimulation() {
   }
 }
 
-function renderResults(result) { renderMetricCards(result.metrics || {}); renderPathPlot(result); renderSurvivalPlot(result); }
+function renderResults(result) {
+  renderMetricCards(result.metrics || {});
+  renderPathPlot(result);
+  renderBarrierPlot(result);
+  renderSurvivalPlot(result);
+  renderSurvivalMapPlot(result);
+}
 
 function isFiniteArray(arr) { return Array.isArray(arr) && arr.length > 0 && arr.every(v => Number.isFinite(v)); }
 
@@ -250,29 +267,109 @@ function renderMetricCards(metrics) {
   }
 }
 
+// ---- Plot (a): lattice-aware minimum-resistance channel -------------------
+function soluteStyle(el) {
+  if (["C", "N", "O", "B"].includes(el)) return {symbol: "diamond", color: "#ef4444"};
+  return {symbol: "triangle-up", color: "#22c55e"};
+}
+
 function renderPathPlot(result) {
   const d = result.domain || latestSetup.domain;
   const traces = [];
-  if (result.lattice_points?.x?.length) traces.push({x: result.lattice_points.x, y: result.lattice_points.z, mode: "markers", type: "scatter", name: "host lattice points near path", marker: {size: 4, color: "rgba(100,116,139,0.28)"}});
-  if (result.interstitial_sites?.x?.length) traces.push({x: result.interstitial_sites.x, y: result.interstitial_sites.z, mode: "markers", type: "scatter", name: "interstitial sites near path", marker: {size: 3, color: "rgba(14,165,233,0.25)"}});
+  if (result.lattice_points?.x?.length) traces.push({x: result.lattice_points.x, y: result.lattice_points.z, mode: "markers", type: "scatter", name: "host lattice", marker: {size: 4, color: "rgba(100,116,139,0.30)"}});
+  if (result.interstitial_sites?.x?.length) traces.push({x: result.interstitial_sites.x, y: result.interstitial_sites.z, mode: "markers", type: "scatter", name: "interstitial sites", marker: {size: 3, color: "rgba(125,211,252,0.35)"}});
+  if (result.trap_sites?.x?.length) traces.push({x: result.trap_sites.x, y: result.trap_sites.z, mode: "markers", type: "scatter", name: "trap sites (U<0)", marker: {size: 7, color: "rgba(168,85,247,0.50)", symbol: "circle"}});
+  if (result.high_barrier_edges?.x?.length) traces.push({x: result.high_barrier_edges.x, y: result.high_barrier_edges.z, mode: "markers", type: "scatter", name: "high-barrier edges (top 5%)", marker: {size: 7, color: "rgba(220,38,38,0.65)", symbol: "x"}});
   const byEl = {};
   for (const s of result.solute_positions || []) {
     if (!byEl[s.element]) byEl[s.element] = {x: [], z: []};
     byEl[s.element].x.push(s.x); byEl[s.element].z.push(s.z);
   }
-  for (const [el, pts] of Object.entries(byEl)) traces.push({x: pts.x, y: pts.z, mode: "markers", type: "scatter", name: `${el} solute near path`, marker: {size: 9, symbol: "diamond", opacity: 0.78}});
-  if (result.trap_sites?.x?.length) traces.push({x: result.trap_sites.x, y: result.trap_sites.z, mode: "markers", type: "scatter", name: "low-site-energy trap sites", marker: {size: 6, color: "rgba(168,85,247,0.55)", symbol: "circle"}});
-  if (result.high_barrier_edges?.x?.length) traces.push({x: result.high_barrier_edges.x, y: result.high_barrier_edges.z, mode: "markers", type: "scatter", name: "highest-barrier edge midpoints", marker: {size: 6, color: "rgba(239,68,68,0.62)", symbol: "x"}});
+  for (const [el, pts] of Object.entries(byEl)) {
+    const st = soluteStyle(el);
+    traces.push({x: pts.x, y: pts.z, mode: "markers", type: "scatter", name: `${el} solute`, marker: {size: 10, symbol: st.symbol, color: st.color, line: {width: 0.5, color: "#111"}, opacity: 0.9}});
+  }
   const path = result.dominant_pathway || {x: [], z: [], activation_barrier_eV: []};
-  traces.push({x: path.x || [], y: path.z || [], mode: "lines+markers", type: "scatter", name: "dominant minimum-resistance pathway", line: {width: 5, color: "#0f766e"}, marker: {size: 8, color: path.activation_barrier_eV || [], colorscale: "Inferno", colorbar: {title: "activation<br>barrier (eV)"}}});
-  Plotly.newPlot("pathPlot", traces, {title: "Lattice-aware interstitial pathway (filtered near dominant path)", xaxis: {title: "x / a", range: [0, d.Nx]}, yaxis: {title: "depth z / a", range: [d.Nz, 0]}, legend: {orientation: "h"}, margin: {l: 65, r: 30, t: 55, b: 90}}, {responsive: true});
+  traces.push({x: path.x || [], y: path.z || [], mode: "lines+markers", type: "scatter", name: "minimum-resistance channel", line: {width: 4, color: TEAL}, marker: {size: 7, color: path.activation_barrier_eV || [], colorscale: INFERNO, colorbar: {title: "activation<br>barrier (eV)"}, line: {width: 0.3, color: "#111"}}});
+  if (path.x && path.x.length && Number.isInteger(path.injection_index)) {
+    const jx = path.x[path.injection_index], jz = path.z[path.injection_index];
+    traces.push({x: [jx], y: [jz], mode: "markers", type: "scatter", name: "injection site", marker: {size: 18, symbol: "star", color: "#fde047", line: {width: 0.8, color: "#111"}}});
+  }
+  if (path.surface_exit) traces.push({x: [path.surface_exit.x], y: [path.surface_exit.z], mode: "markers", type: "scatter", name: "surface exit", marker: {size: 11, symbol: "square", color: "#0ea5e9", line: {width: 0.6, color: "#111"}}});
+  if (path.bulk_exit) traces.push({x: [path.bulk_exit.x], y: [path.bulk_exit.z], mode: "markers", type: "scatter", name: "bulk exit", marker: {size: 11, symbol: "square", color: "#7c3aed", line: {width: 0.6, color: "#111"}}});
+  Plotly.newPlot("pathPlot", traces, {
+    title: "Minimum-resistance channel through injection site (lattice y-slice)",
+    xaxis: {title: "x / a", range: [-0.25, d.Nx + 0.25]},
+    yaxis: {title: "depth z / a", range: [d.Nz + 0.25, -0.25]},
+    legend: {orientation: "h"}, margin: {l: 65, r: 30, t: 55, b: 90}
+  }, {responsive: true});
 }
 
+// ---- Plot (b): activation-barrier profile along the channel ---------------
+function renderBarrierPlot(result) {
+  const bp = result.barrier_profile || {jump_index: [], activation_barrier_eV: []};
+  const x = bp.jump_index || [], y = bp.activation_barrier_eV || [];
+  const traces = [{x, y, mode: "lines+markers", type: "scatter", name: "activation barrier", line: {width: 2.4, color: TEAL}, marker: {size: 6, color: y, colorscale: INFERNO, line: {width: 0.3, color: "#111"}}}];
+  if (Number.isInteger(bp.bottleneck_index) && bp.bottleneck_index > 0) {
+    const bi = bp.bottleneck_index - 1;
+    traces.push({x: [x[bi]], y: [y[bi]], mode: "markers", type: "scatter", name: "bottleneck", marker: {size: 15, symbol: "circle-open", color: "#dc2626", line: {width: 2.2}}});
+  }
+  const shapes = [];
+  const anns = [];
+  if (typeof bp.host_barrier_eV === "number") {
+    shapes.push({type: "line", xref: "paper", x0: 0, x1: 1, y0: bp.host_barrier_eV, y1: bp.host_barrier_eV, line: {dash: "dash", width: 1.3, color: "#64748b"}});
+    anns.push({xref: "paper", x: 0.01, y: bp.host_barrier_eV, yanchor: "bottom", showarrow: false, text: `host barrier Eₘ⁰ = ${bp.host_barrier_eV.toFixed(3)} eV`, font: {size: 11, color: "#475569"}});
+  }
+  if (Number.isInteger(bp.injection_index) && bp.injection_index > 0 && bp.injection_index < x.length) {
+    const jx = bp.injection_index + 0.5;
+    shapes.push({type: "line", x0: jx, x1: jx, yref: "paper", y0: 0, y1: 1, line: {dash: "dot", width: 1.2, color: "#f59e0b"}});
+    anns.push({x: jx, yref: "paper", y: 0.98, yanchor: "top", showarrow: false, text: "injection", textangle: 90, font: {size: 10, color: "#b45309"}});
+  }
+  Plotly.newPlot("barrierPlot", traces, {
+    title: "Activation-barrier profile along channel (surface → bulk)",
+    xaxis: {title: "jump index along channel"},
+    yaxis: {title: "activation barrier (eV)"},
+    shapes, annotations: anns, showlegend: false, margin: {l: 70, r: 30, t: 55, b: 60}
+  }, {responsive: true});
+}
+
+// ---- Plot (c): global survival probability --------------------------------
 function renderSurvivalPlot(result) {
   let t = result.survival_probability?.time_s || [];
   let s = result.survival_probability?.S_t || [];
+  const mfpt = result.survival_probability?.mfpt_s;
   if (!isFiniteArray(t) || !isFiniteArray(s) || t.length !== s.length) { t = [0, 1]; s = [1, 0]; }
-  Plotly.newPlot("survivalPlot", [{x: t, y: s, mode: "lines", type: "scatter", name: "S(t)", line: {width: 4, color: "#0f766e"}}], {title: "Survival probability", xaxis: {title: "time (s)"}, yaxis: {title: "S(t)", range: [0, 1.05]}, margin: {l: 65, r: 30, t: 55, b: 70}}, {responsive: true});
+  const shapes = [], anns = [];
+  if (typeof mfpt === "number" && mfpt > 0) {
+    shapes.push({type: "line", x0: mfpt, x1: mfpt, yref: "paper", y0: 0, y1: 1, line: {dash: "dot", width: 1.4, color: "#dc2626"}});
+    anns.push({x: mfpt, y: 0.5, xanchor: "left", showarrow: false, text: ` MFPT = ${Number(mfpt).toExponential(2)} s`, font: {size: 11, color: "#991b1b"}});
+  }
+  Plotly.newPlot("survivalPlot", [{x: t, y: s, mode: "lines", type: "scatter", name: "S(t)", fill: "tozeroy", fillcolor: "rgba(15,118,110,0.08)", line: {width: 3, color: TEAL}}], {
+    title: "Global survival probability S(t)",
+    xaxis: {title: "time (s)"}, yaxis: {title: "S(t)", range: [0, 1.05]},
+    shapes, annotations: anns, showlegend: false, margin: {l: 65, r: 30, t: 55, b: 60}
+  }, {responsive: true});
+}
+
+// ---- Plot (d): site-resolved survival map at t = MFPT ---------------------
+function renderSurvivalMapPlot(result) {
+  const d = result.domain || latestSetup.domain;
+  const m = result.survival_map || {x: [], z: [], S: []};
+  const traces = [{
+    x: m.x || [], y: m.z || [], mode: "markers", type: "scattergl", name: "S_i(MFPT)",
+    marker: {size: 6, color: m.S || [], colorscale: "Viridis", cmin: 0, cmax: 1, colorbar: {title: "P(survive<br>to MFPT)"}, symbol: "square"}
+  }];
+  const path = result.dominant_pathway;
+  if (path?.x?.length) {
+    traces.push({x: path.x, y: path.z, mode: "lines", type: "scatter", name: "channel", line: {width: 2.4, color: "#ffffff"}});
+    if (Number.isInteger(path.injection_index)) traces.push({x: [path.x[path.injection_index]], y: [path.z[path.injection_index]], mode: "markers", type: "scatter", name: "injection", marker: {size: 15, symbol: "star", color: "#fde047", line: {width: 0.7, color: "#111"}}});
+  }
+  Plotly.newPlot("survivalMapPlot", traces, {
+    title: "Site-resolved survival probability at t = MFPT",
+    xaxis: {title: "x / a", range: [0, d.Nx]},
+    yaxis: {title: "depth z / a", range: [d.Nz, 0]},
+    legend: {orientation: "h"}, margin: {l: 65, r: 30, t: 55, b: 70}
+  }, {responsive: true});
 }
 
 function downloadInputJson() { if (!latestSetup) { alert("Generate energy inputs first."); return; } downloadJson("idoms_input.json", {setup: latestSetup, energies_eV: latestEnergyTemplate.length ? collectEnergies() : {}}); }
